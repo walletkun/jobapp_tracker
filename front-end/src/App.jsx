@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import PropTypes from "prop-types";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -16,16 +23,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ChevronDownIcon } from "lucide-react";
 
 export default function App() {
   const STATUS_PROGRESS = {
-    "applied": 10,
+    applied: 10,
     "oa sent": 25,
     "oa received": 40,
-    "interviewed": 60,
-   "offered": 85,
-    "accepted": 100,
-    "rejected": 0,
+    interviewed: 60,
+    offered: 85,
+    accepted: 100,
+    rejected: 0,
   };
 
   const [applications, setApplications] = useState([]);
@@ -36,7 +44,6 @@ export default function App() {
     status: "applied",
     progress: STATUS_PROGRESS["applied"],
   });
-
 
   useEffect(() => {
     fetchApplications();
@@ -49,7 +56,7 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-        }
+        },
       });
       if (!response.ok) {
         throw new Error("Failed to fetch applications");
@@ -73,17 +80,79 @@ export default function App() {
     });
   };
 
+
+  
+
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5001/api/applications/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus, progress: STATUS_PROGRESS[newStatus] }),
+        }
+      );
+
+        const responseData = await response.json();
+        console.log("Response status:", response.body);
+
+
+      if (!response.ok) {
+        throw new Error(responseData.error || "Failed to update application status");
+      }
+
+      console.log("Status updated successfully", responseData);
+
+      await fetchApplications();
+    } catch (e) {
+      setError(e.message);
+      console.error("Error updating application status:", e);
+    }
+  };
+
+  const StatusDropdownCell = ({ application, onStatusUpdate }) => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex items-center justify-center">
+          <span className="capitalize">{application.status}</span>
+          <ChevronDownIcon className="w-4 h-4 ml-2" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {Object.keys(STATUS_PROGRESS).map((status) => (
+            <DropdownMenuItem
+              key={status}
+              onClick={() => onStatusUpdate(application.id, status)}
+              className="capitalize"
+            >
+              {status} ({STATUS_PROGRESS[status.toLowerCase()]}%)
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  StatusDropdownCell.propTypes = {
+    application: PropTypes.shape({
+      id: PropTypes.number.isRequired,
+      status: PropTypes.string.isRequired,
+    }).isRequired,
+    onStatusUpdate: PropTypes.func.isRequired,
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Submitting application:", newApplication);
-    
+
     try {
       const applicationData = {
         company: newApplication.company,
         position: newApplication.position,
         status: newApplication.status.toLowerCase(),
-        time_period: newApplication.time_period,
-        progress: STATUS_PROGRESS[newApplication.status.toLowerCase()] // Use the mapping directly
+        progress: STATUS_PROGRESS[newApplication.status.toLowerCase()],
       };
 
       console.log("Sending data:", applicationData); // Debug log
@@ -93,7 +162,7 @@ export default function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(applicationData)
+        body: JSON.stringify(applicationData),
       });
 
       console.log("Response status:", response.status);
@@ -112,7 +181,7 @@ export default function App() {
         status: "applied",
         progress: STATUS_PROGRESS["applied"],
       });
-      fetchApplications();
+      await fetchApplications();
     } catch (err) {
       setError(err.message);
       console.error("Error creating application:", err);
@@ -128,15 +197,14 @@ export default function App() {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
-          credentials: "include",
         }
       );
-
+      console.log("Delete item: ", response);
       if (!response.ok) {
         throw new Error("Failed to delete application");
       }
 
-      fetchApplications();
+      await fetchApplications();
     } catch (err) {
       setError(err.message);
       console.error("Error deleting application:", err);
@@ -179,14 +247,6 @@ export default function App() {
             <SelectItem value="rejected">Rejected (0%)</SelectItem>
           </SelectContent>
         </Select>
-        <Input
-          type="number"
-          name="progress"
-          value={newApplication.progress}
-          readOnly
-          className="bg-gray-100"
-          placeholder="Progress (%)"
-        />
         <Button type="submit">Add Application</Button>
       </form>
 
@@ -207,7 +267,12 @@ export default function App() {
             <TableRow key={app.id}>
               <TableCell>{app.company}</TableCell>
               <TableCell>{app.position}</TableCell>
-              <TableCell>{app.status}</TableCell>
+              <TableCell>
+                <StatusDropdownCell
+                  application={app}
+                  onStatusUpdate={handleStatusUpdate}
+                ></StatusDropdownCell>
+              </TableCell>
               <TableCell>{app.progress}%</TableCell>
               <TableCell>
                 <Button
