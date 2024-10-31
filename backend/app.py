@@ -11,9 +11,9 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
         "origins": "[http://localhost:5173]",  # Add your frontend URL
-        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", 'OPTIONS'],
         "allow_headers": ["Content-Type"],
-        "support_credentials": True
+        "supports_credentials": True
     }
 })
 app.config.from_object(Config)
@@ -43,7 +43,7 @@ class JobApplication(db.Model):
         }
 
 def validate_application_data(data):
-    required_fields = ['company', 'position', 'status', 'progress', 'time period']
+    required_fields = ['company', 'position', 'status', 'progress']
     if not all(field in data for field in required_fields):
         return False, "Missing required fields"
 
@@ -98,11 +98,11 @@ def handle_application():
             return jsonify(new_application.to_dict()), 201
 
         except Exception as e:
-            print("Error:", str(e))  # Debug log
+            print("Error:", str(e)) 
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
-    else:  # GET request
+    else:
         try:
             applications = JobApplication.query.all()
             return jsonify([app.to_dict() for app in applications])
@@ -114,7 +114,7 @@ def handle_application():
         
 
 
-@app.route("/api/applications/<int:id>", methods=['GET', 'PUT','DELETE'])
+@app.route("/api/applications/<int:id>", methods=['GET', 'PUT','DELETE','PATCH'])
 def handle_applications(id):
     try:
         application = JobApplication.query.get_or_404(id)
@@ -132,22 +132,38 @@ def handle_applications(id):
             if not is_valid:
                 return jsonify({'Application does not exist: ': error_message}), 400
 
-
-
             application.company = data['company']
             application.position = data['position']
             application.status = data['status'].lower()
             application.progress = data['progress']
-
             db.session.commit()
 
-
-        elif request.method == 'DELETE':
+        #Wanting to delete the current appllication
+        if request.method == 'DELETE':
             db.session.delete(application)
             db.session.commit()
 
             return jsonify({"Message: ": "Application deleted successfully"})
 
+
+        #Wanting to update the status of the application
+        if request.method == 'PATCH':
+            data = request.json
+
+            if 'status' not in data:
+                return jsonify({"error: ": "Missing 'status' field"}), 400
+
+            valid_statuses = ['applied', 'oa sent', 'oa received', 'interviewed', 'offered', 'accepted', 'rejected']
+            
+            if data['status'].lower() not in valid_statuses:
+                return jsonify({"error: ": f"Status must be one of: {', '.join(valid_statuses)}"}), 400
+
+            application.status = data['status'].lower()
+            if 'progress' in data:
+                application.progress = data['progress']
+            db.session.commit()
+
+            return jsonify(application.to_dict())
 
     except Exception as e:
         db.session.rollback()
@@ -156,7 +172,7 @@ def handle_applications(id):
 
 
 
-@app.route("/api/application/stats", methods=["GET"])
+@app.route("/api/applications/stats", methods=["GET"])
 def get_application_stats():
     try:
         total_applications = JobApplication.query.count()
@@ -175,7 +191,31 @@ def get_application_stats():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/applications/<int:id>", methods=["PATCH"])
+def update_application_status(id):
+    try:
+        application = JobApplication.query.get_or_404(id)
+        data = request.json
 
+        if 'status' not in data:
+            return jsonify({"error": "Missing 'status' field"}), 400
+
+        valid_statuses = ['applied', 'oa sent', 'oa received', 'interviewed', 'offered', 'accepted', 'rejected']
+        if data['status'].lower() not in valid_statuses:
+            return jsonify({"error": f"Status must be one of: {', '.join(valid_statuses)}"}), 400
+
+        application.status = data['status'].lower()
+        if 'progress' in data:
+            application.progress = data['progress']
+            
+        application.updated_at = datetime.now()
+        db.session.commit()
+
+        return jsonify(application.to_dict())
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
     

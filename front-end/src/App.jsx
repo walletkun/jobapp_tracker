@@ -28,8 +28,8 @@ import { ChevronDownIcon } from "lucide-react";
 export default function App() {
   const STATUS_PROGRESS = {
     applied: 10,
-    "oa sent": 25,
-    "oa received": 40,
+    "oa sent": 40,
+    "oa received": 25,
     interviewed: 60,
     offered: 85,
     accepted: 100,
@@ -239,8 +239,8 @@ export default function App() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="applied">Applied (10%)</SelectItem>
-            <SelectItem value="oa sent">OA Sent (25%)</SelectItem>
-            <SelectItem value="oa received">OA Received (40%)</SelectItem>
+            <SelectItem value="oa sent">OA Sent (40%)</SelectItem>
+            <SelectItem value="oa received">OA Received (25%)</SelectItem>
             <SelectItem value="interviewed">Interviewed (60%)</SelectItem>
             <SelectItem value="offered">Offered (85%)</SelectItem>
             <SelectItem value="accepted">Accepted (100%)</SelectItem>

@@ -116,3 +116,9 @@ job-application-tracker/
 - POST /api/applications - Create a new application
 - DELETE /api/application - Delete an application
 
+
+
+
+## Future Implementation
+- Adding a gmail scraper to check up-to-date application results
+- Integrate automatic change of results based on the above scrape
